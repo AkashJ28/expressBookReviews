@@ -1,37 +1,28 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const session = require('express-session')
-const customer_routes = require('./router/auth_users.js').authenticated;
-const genl_routes = require('./router/general.js').general;
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const customer_routes = require("./router/auth_users.js").authenticated;
+const genl_routes = require("./router/general.js").general;
 
 const app = express();
-
 app.use(express.json());
 
-app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
+const PORT = 3000;
 
-app.use("/customer/auth/*", function auth(req,res,next){
-//Write the authenication mechanism here
-if(req.session.authorization) {
-    let token = req.session.authorization['auth-token']; // Access Token
-    
-    jwt.verify(token, "access",(err,user)=>{
-        if(!err){
-            req.user = user;
-            next();
-        }
-        else{
-            return res.status(403).json({message: "User not authenticated"})
-        } 
-     });
- } else {
-     return res.status(403).json({message: "User not logged in"})
- }
+// JWT Authentication middleware
+app.use("/customer/auth/*", function auth(req, res, next) {
+  const authHeader = req.headers.authorization; // "Bearer <token>"
+  if (!authHeader)
+    return res.status(401).json({ message: "User not logged in" });
+
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, "access", (err, user) => {
+    if (err) return res.status(403).json({ message: "User not authenticated" });
+    req.user = user; // store username for later
+    next();
+  });
 });
- 
-const PORT =3000;
 
 app.use("/customer", customer_routes);
 app.use("/", genl_routes);
 
-app.listen(PORT,()=>console.log("Server is running"));
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
